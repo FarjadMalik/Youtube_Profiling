@@ -1,0 +1,6 @@
+config/client_secrets.json
+outputs/
+py310_yt_api/
+# Ignore Python cache files
+__pycache__/
+oldtimer.py
