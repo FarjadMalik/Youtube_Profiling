@@ -22,6 +22,11 @@ class YoutubeManager:
         self.logger = setup_logger(__name__)
         self.max_retries = 3
 
+        if not secrets_file and not token_file:
+            self.logger.error(f"Please provide a clients_secret file (currently: {secrets_file}) " \
+                              f"or an already authorized token file (currently: {token_file}) to access youtube api.")
+            return
+
         if os.path.exists(token_file):
             self.credentials = Credentials.from_authorized_user_file(token_file, SCOPES)
 
@@ -40,14 +45,14 @@ class YoutubeManager:
 
     # Get playlist, video or channel information
     def get_playlist_info(self, playlist_id: str) -> Dict:
-        '''
+        """
         Get playlist resource for a single playlist id.
         Returns a playlist resource dictionary or None on error/empty.
         Args:
             playlist_id (str): The ID of the playlist to retrieve.
         Returns:
             Dict: A playlist resource dictionary.
-        '''
+        """
         items = []
 
         @retry_on_exception()
@@ -79,14 +84,14 @@ class YoutubeManager:
         return playlist_info[0] if len(playlist_info) else {}
     
     def get_user_channel(self, part: str = "snippet,contentDetails,statistics,topicDetails") -> Dict:
-        '''
+        """
         Fetches the channel resource for the authenticated user.
         Returns a channel resource dictionary or None on error/empty.
         Args:
             part (str): Comma-separated list of resource parts to retrieve.
         Returns:
             Dict: A channel resource dictionary.
-        '''
+        """
         items = []
         @retry_on_exception()
         def _call(part: str):
@@ -121,13 +126,13 @@ class YoutubeManager:
         return channel_info[0] if len(channel_info) else {}
     
     def get_channel_info(self, channel_id: str) -> Dict:
-        '''
+        """
         Get channel resource for a single channel id.
         Args:
             channel_id (str): The ID of the channel to retrieve.
         Returns:
             Dict: A channel resource dictionary.
-        '''
+        """
         items = []
         @retry_on_exception()
         def _call(cid: str):
@@ -163,13 +168,13 @@ class YoutubeManager:
         return channel_info[0]  if len(channel_info) else {}
         
     def get_video_info(self, video_id: str) -> Dict:
-        '''
+        """
         Get video resource for a single video id.
         Args:
             video_id (str): The ID of the video to retrieve.
         Returns:
             Dict: A video resource dictionary.
-        '''
+        """
         items = []
         @retry_on_exception()
         def _call(vid: str):
@@ -263,7 +268,7 @@ class YoutubeManager:
         return playlists
     
     def create_playlist(self, title: str, description: str = "", privacy_status: str = "private") -> Dict:
-        '''
+        """
         Create a new playlist in the authenticated user's channel.
 
         Args:
@@ -272,7 +277,7 @@ class YoutubeManager:
             privacy_status (str): Privacy status of the playlist ('private', 'public', 'unlisted').
         Returns:
             Dict: The created playlist resource.
-        '''
+        """
         body = {
             "snippet": {
                 "title": title,
@@ -340,13 +345,13 @@ class YoutubeManager:
         return playlist_info
     
     def delete_playlist(self, playlist_id: str) -> bool:
-        '''
+        """
         Delete a playlist by its ID if its owned by the authenticated user.
         Args:
             playlist_id (str): The ID of the playlist to delete.
         Returns:
             bool: True if deletion was successful, False otherwise.
-        '''
+        """
         @retry_on_exception()
         def _call(pid: str):
             return self.yt_service.playlists().delete(id=pid).execute()
@@ -358,14 +363,14 @@ class YoutubeManager:
         return True
 
     def get_playlist_items(self, playlist_id: str) -> List[Dict]:
-        '''
+        """
         List all videos in a playlist (handles pagination).
         Returns a list of video IDs or None on error/empty.
         Args:
             playlist_id (str): The ID of the playlist to retrieve items from.
         Returns:
             List[str]: A list of video IDs in the playlist.
-        '''
+        """
         items = []
         next_page_token = None
 
@@ -409,14 +414,14 @@ class YoutubeManager:
     
     # Add/remove videos to/from playlists
     def add_video_to_playlist(self, video_id: str, playlist_id: str) -> Dict:
-        '''
+        """
         Add a video to a playlist of authenticated user.
         Args:
             video_id (str): The ID of the video to add to the playlist.
             playlist_id (str): The ID of the playlist to add the video to.
         Returns:
             Dict: The created playlist item resource.
-        '''
+        """
         body = {
             "snippet": {
                 "playlistId": playlist_id,
@@ -457,14 +462,14 @@ class YoutubeManager:
         return playlist_item_info
 
     def get_playlist_item_id(self, video_id: str, playlist_id: str) -> str | None:
-        '''
+        """
         Get the playlist item ID for a given video ID in a specific playlist.
         Args:
             video_id (str): The ID of the video.
             playlist_id (str): The ID of the playlist.
         Returns:
             str | None: The playlist item ID if found, None otherwise.
-        '''
+        """
         playlist_items = self.get_playlist_items(playlist_id)
         if not playlist_items:
             return None
@@ -493,13 +498,13 @@ class YoutubeManager:
         return self.delete_playlist_item(playlist_item_id)
 
     def delete_playlist_item(self, playlist_item_id: str) -> bool:
-        '''
+        """
         Remove a video from a playlist by its playlist item ID if it's owned by the authenticated user.
         Args:
             playlist_item_id (str): The ID of the playlist item to remove. Be specific with your playlist item id and not playlist id.
         Returns:
             bool: True if removal was successful, False otherwise.
-        '''
+        """
         @retry_on_exception()
         def _call(item_id: str):
             return self.yt_service.playlistItems().delete(id=item_id).execute()
@@ -595,24 +600,35 @@ class YoutubeManager:
         return _call(body)
     
     # Get video tags and transcript (captions)
-    def get_video_tags(self, video_id: str) -> List[str] | None:
-        '''
+    def get_video_tags(self, video_id: str) -> List[str]:
+        """
         Get tags for a single video id.
         Args:
             video_id (str): The ID of the video to retrieve tags for.
         Returns:
-            List[str] | None: A list of tags or None if no tags are found.
-        '''        
-        return self.get_video_info(video_id).get('tags', None)
+            List[str] | None: A list of tags or empty list if no tags are found.
+        """        
+        return self.get_video_info(video_id).get('tags', [])
+    
+    # Get video topics
+    def get_video_topics(self, video_id: str) -> List[str]:
+        """
+        Get topics for a single video id.
+        Args:
+            video_id (str): The ID of the video to retrieve topics for.
+        Returns:
+            List[str] | None: A list of tags or  empty list if no topics are found.
+        """        
+        return self.get_video_info(video_id).get('topicDetails', [])
     
     def fetch_transcript(self, video_id: str, languages=['en']) -> str | None:
-        '''
+        """
         Fetch the transcript for a video if available.
         Args:
             video_id (str): The ID of the video to retrieve the transcript for.
         Returns:
             str | None: The transcript text if available, None otherwise.
-        '''
+        """
 
         # Using youtube-transcript-api to fetch transcripts
         # Install with: pip install youtube-transcript-api
@@ -658,13 +674,13 @@ class YoutubeManager:
         return " ".join([snippet.text for snippet in fetched_transcript]) if fetched_transcript else ""
 
     def get_captions(self, video_id: str):
-        '''
+        """
         Get the captions for a video if available.
         Args:
             video_id (str): The ID of the video to retrieve the transcript for.
         Returns:
             str | None: The transcript text if available, None otherwise.
-        '''
+        """
         try:
             @retry_on_exception()
             def _list(vid: str):
@@ -773,13 +789,13 @@ class YoutubeManager:
         return liked_videos
     
     def like_video(self, video_id: str) -> bool:
-        '''
+        """
         Like a video on behalf of the authenticated user.
         Args:
             video_id (str): The ID of the video to like.
         Returns:
             bool: True if the operation was successful, False otherwise.
-        '''
+        """
         try:
             self.yt_service.videos().rate(
                 id=video_id,
@@ -792,13 +808,13 @@ class YoutubeManager:
         return True
 
     def dislike_video(self, video_id: str) -> bool:
-        '''
+        """
         Dislike a video on behalf of the authenticated user.
         Args:
             video_id (str): The ID of the video to dislike.
         Returns:
             bool: True if the operation was successful, False otherwise.
-        '''
+        """
         try:
             self.yt_service.videos().rate(
                 id=video_id,
@@ -811,13 +827,13 @@ class YoutubeManager:
         return True
     
     def unrate_video(self, video_id: str) -> bool:
-        '''
+        """
         Unrate a video on behalf of the authenticated user basically neutral rating, neither like nor dislike.
         Args:
             video_id (str): The ID of the video to dislike.
         Returns:
             bool: True if the operation was successful, False otherwise.
-        '''
+        """
         try:
             self.yt_service.videos().rate(
                 id=video_id,
@@ -831,14 +847,14 @@ class YoutubeManager:
 
     # Manage subscriptions
     def subscribe_to_channel(self, channel_id: str) -> Dict:
-        '''
+        """
             Subscribe to a channel by its channel ID.
             Returns the subscription resource on success or None on error.
             Args:
                 channel_id (str): The ID of the channel to subscribe to.
             Returns:
                 Dict: The created subscription resource.
-        '''
+        """
         body = {
             "snippet": {
                 "resourceId": {
@@ -964,14 +980,14 @@ class YoutubeManager:
     
     # Search content
     def search_videos(self, query: str, max_results: int = 5) -> List[Dict]:
-        '''
+        """
         Search for videos by query string.
         Args:
             query (str): The search query string.
             max_results (int): Maximum number of results to return.
         Returns:
             List[Dict]: A list of video resource dictionaries.
-        '''        
+        """        
         if max_results <= 0:
             return []
 
@@ -1017,7 +1033,7 @@ class YoutubeManager:
         return videos
     
     def search_playlist(self, playlist_name, channel_id=None, max_results=50) -> List[Dict]:
-        '''
+        """
         Search for playlists by name, optionally filtering by channel ID.
         Args:
             playlist_name (str): The name of the playlist to search for.
@@ -1025,7 +1041,7 @@ class YoutubeManager:
             channel_id (str | None): Optional channel ID to filter the search.
         Returns:
             List[Dict]: A list of playlist resource dictionaries.
-        '''
+        """
         if max_results <= 0:
             return []
 

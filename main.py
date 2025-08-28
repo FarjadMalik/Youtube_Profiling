@@ -1,24 +1,39 @@
-# Internal libraries
+# Internal imports
 from src.yt_api_manager import YoutubeManager
-from utils.helpers import extract_transcript, convert_vtt_to_text
+from src.yt_data_manager import DataManager
+from src.yt_analysis import plot_word_cloud
+from utils.helpers import (
+    extract_transcript, 
+    convert_vtt_to_text
+)
 from utils.logger import setup_logger
+
 logger = setup_logger(__name__)
 
 
 def main():
     logger.info("Starting YouTube Profiling Tool")
-    # Authenticate credentials for youtube api v3
-    yt_manager = YoutubeManager(secrets_file='auth/client_secrets.json', token_file='auth/token.json')
-    logger.info("Authenticated to YouTube API")
     
+    # Instantiate data manager 
+    data_manager = DataManager(client_secrets='auth/client_secrets.json', token='auth/token.json', 
+                               inputs='data', outputs='outputs')
+    
+    # playlist_doc = data_manager.get_playlist_doc(playlist_id='PLFzojsQltjOBtoz-_Hu0c2xu26aIIW0Ws')
+    # Assuming `data` is your List[str]
+    # blob = ' '.join(user_playlist_docs)
+        
+    
+    user_playlist_docs = data_manager.get_user_playlist_docs()
+    # Assuming `data` is your List[List[str]]
+    blob = ' '.join(word for sublist in user_playlist_docs for word in sublist)
+    data_manager.save_pickle(blob=blob, filename='user_playlist_docs')
+    # Create a word cloud from playlist docs
+    plot_word_cloud(blob, title='User Playlist Content')
     
 if __name__ == "__main__":
     main()
 
-    # TODO: Implement the following features
-
-    # Playlist and channel summaries
-    # Use get_all_playlists and get_playlist_items to collect every video in your playlists, then fetch per-video metadata with get_video_info for stats and durations.
+    # TODO: Perform various analyses and profiling tasks
 
     # Topic / theme extraction
     # Aggregate titles, descriptions, and tags from get_video_info and get_video_tags and run keyword extraction or topic modeling (LDA, BERTopic).
