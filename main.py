@@ -1,16 +1,22 @@
+# Internal libraries
 from src.yt_api_manager import YoutubeManager
-from utils.logger import setup_logger
 from utils.helpers import extract_transcript, convert_vtt_to_text
+from utils.logger import setup_logger
+logger = setup_logger(__name__)
 
 
-if __name__ == "__main__":
-    logger = setup_logger(__name__)
-    # authenticate credentials for youtube api v3
+def main():
+    logger.info("Starting YouTube Profiling Tool")
+    # Authenticate credentials for youtube api v3
     yt_manager = YoutubeManager(secrets_file='auth/client_secrets.json', token_file='auth/token.json')
     logger.info("Authenticated to YouTube API")
     
+    
+if __name__ == "__main__":
+    main()
 
-    # '''
+    # TODO: Implement the following features
+
     # Playlist and channel summaries
     # Use get_all_playlists and get_playlist_items to collect every video in your playlists, then fetch per-video metadata with get_video_info for stats and durations.
 
