@@ -1,6 +1,21 @@
-config/client_secrets.json
+# Ignore sensitive configuration files
+auth/
+
+# Ignore input and output directories
+data/
 outputs/
+
+# Ignore virtual environment directories
 py310_yt_api/
-# Ignore Python cache files
+
+# Ignore Python cache files and bytecode
 __pycache__/
-oldtimer.py
+*.pyc
+*.pyo
+*.pyd
+
+# Editor and OS files
+.vscode/
+.env
+.DS_Store
+Thumbs.db
